@@ -180,7 +180,11 @@ export interface TaskDetail {
   successMetrics: string[];
 }
 
-export type ViewState = 'input' | 'flow' | 'task-detail';
+export enum ViewState {
+  INPUT_FORM = 'input',
+  PROJECT_FLOW = 'flow',
+  TASK_DETAIL = 'task-detail'
+}
 
 export interface ProjectFileContent {
   title?: string;
