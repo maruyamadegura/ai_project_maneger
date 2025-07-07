@@ -10,14 +10,21 @@ export interface ProjectData {
   ganttData?: GanttItem[] | null;
   createdAt: string;
   updatedAt: string;
+  ownerId: string;
+  isPublic: boolean;
+  lastModifiedBy?: string;
+  userRole?: string; // ユーザーの権限
 }
 
 export class ProjectService {
-  // プロジェクト一覧を取得
+  // プロジェクト一覧を取得（権限情報も含む）
   static async getProjects(): Promise<ProjectData[]> {
     const { data, error } = await supabase
       .from('projects')
-      .select('*')
+      .select(`
+        *,
+        project_members!inner(role)
+      `)
       .order('updated_at', { ascending: false });
 
     if (error) {
@@ -33,6 +40,10 @@ export class ProjectService {
       ganttData: project.gantt_data,
       createdAt: project.created_at,
       updatedAt: project.updated_at,
+      ownerId: project.owner_id,
+      isPublic: project.is_public,
+      lastModifiedBy: project.last_modified_by,
+      userRole: project.project_members[0]?.role,
     }));
   }
 
@@ -52,7 +63,8 @@ export class ProjectService {
     const { data, error } = await supabase
       .from('projects')
       .insert({
-        user_id: user.id,
+        owner_id: user.id,
+        user_id: user.id, // 後方互換性のため
         title,
         goal,
         target_date: targetDate,
@@ -75,6 +87,10 @@ export class ProjectService {
       ganttData: data.gantt_data,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
+      ownerId: data.owner_id,
+      isPublic: data.is_public,
+      lastModifiedBy: data.last_modified_by,
+      userRole: 'owner',
     };
   }
 
@@ -87,6 +103,7 @@ export class ProjectService {
       targetDate?: string;
       tasks?: ProjectTask[];
       ganttData?: GanttItem[] | null;
+      isPublic?: boolean;
     }
   ): Promise<ProjectData> {
     const updateData: any = {};
@@ -96,12 +113,16 @@ export class ProjectService {
     if (updates.targetDate !== undefined) updateData.target_date = updates.targetDate;
     if (updates.tasks !== undefined) updateData.tasks_data = updates.tasks;
     if (updates.ganttData !== undefined) updateData.gantt_data = updates.ganttData;
+    if (updates.isPublic !== undefined) updateData.is_public = updates.isPublic;
 
     const { data, error } = await supabase
       .from('projects')
       .update(updateData)
       .eq('id', id)
-      .select()
+      .select(`
+        *,
+        project_members!inner(role)
+      `)
       .single();
 
     if (error) {
@@ -117,6 +138,10 @@ export class ProjectService {
       ganttData: data.gantt_data,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
+      ownerId: data.owner_id,
+      isPublic: data.is_public,
+      lastModifiedBy: data.last_modified_by,
+      userRole: data.project_members[0]?.role,
     };
   }
 
@@ -136,7 +161,10 @@ export class ProjectService {
   static async getProject(id: string): Promise<ProjectData> {
     const { data, error } = await supabase
       .from('projects')
-      .select('*')
+      .select(`
+        *,
+        project_members!inner(role)
+      `)
       .eq('id', id)
       .single();
 
@@ -153,6 +181,19 @@ export class ProjectService {
       ganttData: data.gantt_data,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
+      ownerId: data.owner_id,
+      isPublic: data.is_public,
+      lastModifiedBy: data.last_modified_by,
+      userRole: data.project_members[0]?.role,
     };
+  }
+
+  // プロジェクトの公開設定を切り替え
+  static async toggleProjectVisibility(id: string): Promise<boolean> {
+    const project = await this.getProject(id);
+    const newVisibility = !project.isPublic;
+    
+    await this.updateProject(id, { isPublic: newVisibility });
+    return newVisibility;
   }
 }

@@ -14,6 +14,7 @@ import {
 } from './types';
 import { generateProjectPlan, initializeGemini } from './services/geminiService';
 import { ProjectService, ProjectData } from './services/projectService';
+import { CollaborationService } from './services/collaborationService';
 import { supabase } from './lib/supabase';
 import ProjectInputForm from './components/ProjectInputForm';
 import ProjectFlowDisplay from './components/ProjectFlowDisplay';
@@ -25,6 +26,7 @@ import SlideEditorView from './components/SlideEditorView';
 import ApiKeyModal from './components/ApiKeyModal';
 import AuthModal from './components/AuthModal';
 import ProjectListModal from './components/ProjectListModal';
+import InvitationAcceptModal from './components/InvitationAcceptModal';
 
 const defaultExtendedDetails: ExtendedTaskDetails = {
   subSteps: [],
@@ -119,6 +121,7 @@ const App: React.FC = () => {
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isProjectListOpen, setIsProjectListOpen] = useState<boolean>(false);
+  const [isInvitationModalOpen, setIsInvitationModalOpen] = useState<boolean>(false);
 
   const [history, setHistory] = useState<ProjectTask[][]>([]);
   const [redoHistory, setRedoHistory] = useState<ProjectTask[][]>([]);
@@ -147,6 +150,15 @@ const App: React.FC = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // URLパラメータから招待トークンをチェック
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const inviteToken = urlParams.get('invite');
+    if (inviteToken && user) {
+      setIsInvitationModalOpen(true);
+    }
+  }, [user]);
 
   useEffect(() => {
     const storedKey = sessionStorage.getItem('gemini-api-key');
@@ -380,6 +392,19 @@ const App: React.FC = () => {
     setIsProjectListOpen(false);
     handleStartNewProject();
   };
+
+  const handleInvitationSuccess = async (projectId: string) => {
+    try {
+      const project = await ProjectService.getProject(projectId);
+      handleSelectProject(project);
+      setIsInvitationModalOpen(false);
+      // URLパラメータをクリア
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } catch (error) {
+      console.error('プロジェクトの読み込みに失敗しました:', error);
+      setAppError('プロジェクトの読み込みに失敗しました');
+    }
+  };
   
   const handleAddTaskFromModal = ({ title, description }: { title: string; description: string }) => {
     const newTask: ProjectTask = {
@@ -602,6 +627,13 @@ const App: React.FC = () => {
           onClose={() => setIsProjectListOpen(false)}
           onSelectProject={handleSelectProject}
           onCreateNew={handleCreateNewProject}
+        />
+      )}
+      {isInvitationModalOpen && (
+        <InvitationAcceptModal
+          isOpen={isInvitationModalOpen}
+          onClose={() => setIsInvitationModalOpen(false)}
+          onSuccess={handleInvitationSuccess}
         />
       )}
       {customReportDeck && (
