@@ -1,4 +1,3 @@
-
 export interface Attachment {
   id: string;
   name: string;
@@ -43,7 +42,6 @@ export interface SubStep {
   actionItems?: ActionItem[]; // Checklist for the sub-step
   attachments?: Attachment[]; // For sub-step specific files
 }
-
 
 export enum NumericalTargetStatus {
   PENDING = 'pending',
@@ -140,7 +138,6 @@ export interface SlideDeck {
   theme?: 'light' | 'dark' | 'business';
 }
 
-
 // --- Main Project Interfaces ---
 
 export interface Decision {
@@ -183,13 +180,10 @@ export interface TaskDetail {
   successMetrics: string[];
 }
 
-export enum ViewState {
-  INPUT_FORM,
-  PROJECT_FLOW,
-  TASK_DETAIL,
-}
+export type ViewState = 'input' | 'flow' | 'task-detail';
 
 export interface ProjectFileContent {
+  title?: string;
   projectGoal: string;
   targetDate: string;
   tasks: ProjectTask[];
